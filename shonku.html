@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.H.O.N.K.U. Command Console</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Use Inter font (or a similar tech-friendly sans-serif) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Syntax Highlighting (Monokai-like dark theme) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.js"></script>
+
+    <style>
+        /* --- S.H.O.N.K.U. Cyber Theme Variables --- */
+        :root {
+            --primary-neon: #00FF80;     /* Neon Green for highlights/accents */
+            --bg-dark: #0a192f;          /* Deep space blue/dark */
+            --card-dark: #102a43;        /* Dark technical card background */
+            --bubble-ai: #173b5b;        /* AI response bubble (deep blue) */
+            --bubble-user: #00a896;      /* User response bubble (teal/cyan) */
+            --input-dark: #1c334a;       /* Input field background */
+            --text-light: #e6f1ff;       /* Primary text color (light blue-white) */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* --- Sidebar & Main Container Transition --- */
+        #appWrapper {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #historySidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            z-index: 50;
+            background: var(--bg-dark);
+            border-right: 1px solid var(--primary-neon);
+            box-shadow: 0 0 15px rgba(0, 255, 128, 0.2);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-out;
+            color: var(--text-light);
+            display: flex; /* Make sure the flex container persists */
+            flex-direction: column;
+        }
+        #historySidebar.open {
+            transform: translateX(0);
+        }
+
+        #chatContainer {
+            flex-grow: 1;
+            min-width: 100%; /* Important for initial layout */
+            transition: transform 0.3s ease-out;
+            background: var(--card-dark);
+            border: 1px solid var(--primary-neon); /* Neon border */
+            box-shadow: 0 0 15px rgba(0, 255, 128, 0.2);
+        }
+        #chatContainer.shifted {
+            /* This is only for visual confirmation, as the sidebar is fixed/overlay */
+            /* transform: translateX(280px); */ 
+        }
+
+        /* --- Component Styling (Existing) --- */
+        .cyber-console {
+            color: var(--text-light);
+            transition: all 0.3s ease;
+        }
+        
+        .chat-header {
+            background: var(--bubble-ai);
+            color: var(--text-light);
+            border-bottom: 2px solid var(--primary-neon);
+        }
+
+        .input-area {
+            background: var(--bg-dark);
+            padding: 1rem;
+            padding-bottom: 0;
+            border-top: 1px solid var(--primary-neon);
+        }
+
+        .custom-button {
+            transition: all 0.2s;
+            border-radius: 6px;
+            font-weight: 600;
+            min-width: 44px;
+            min-height: 44px;
+        }
+        .custom-button.primary {
+            background-color: var(--primary-neon);
+            color: var(--bg-dark);
+        }
+        .custom-button.primary:hover:not(:disabled) {
+            background-color: #33FF99;
+            box-shadow: 0 0 12px var(--primary-neon);
+        }
+        .custom-button.icon-only {
+            background-color: var(--input-dark);
+            color: var(--primary-neon);
+            border: 1px solid rgba(0, 255, 128, 0.4);
+        }
+        .custom-button.icon-only:hover:not(:disabled) {
+            background-color: #244666;
+        }
+        .custom-button.clear {
+            background-color: #ff5252;
+            color: white !important;
+        }
+        .custom-button.clear:hover {
+            background-color: #e53935;
+            box-shadow: 0 4px 8px rgba(255, 82, 82, 0.3);
+        }
+        .custom-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .mode-button {
+            border: 1px solid transparent;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+        .mode-button:hover {
+            background-color: var(--card-dark);
+        }
+        .mode-button.active {
+            border-bottom: 2px solid var(--primary-neon);
+            color: var(--primary-neon);
+            background-color: var(--input-dark);
+        }
+
+        .chat-bubble-user {
+            background: var(--bubble-user);
+            color: white;
+            border-radius: 10px 10px 0 10px;
+        }
+
+        .chat-bubble-ai {
+            background: var(--bubble-ai);
+            color: var(--text-light);
+            border-radius: 10px 10px 10px 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+
+        #userInput {
+            background: var(--input-dark) !important;
+            border: 1px solid var(--primary-neon) !important;
+            color: var(--text-light) !important;
+            border-radius: 6px !important;
+            font-family: 'Inter', sans-serif;
+            box-shadow: inset 0 0 5px rgba(0, 255, 128, 0.1);
+        }
+        #userInput:focus {
+            box-shadow: 0 0 8px var(--primary-neon), inset 0 0 5px rgba(0, 255, 128, 0.5);
+            border-color: var(--primary-neon) !important;
+            outline: none;
+        }
+        
+        #chatMessages::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chatMessages::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 255, 128, 0.4);
+            border-radius: 4px;
+        }
+        #chatMessages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .code-container {
+            position: relative;
+            margin: 10px -12px -12px -12px;
+            padding: 0;
+            border-radius: 10px; 
+            overflow-x: auto;
+        }
+        .chat-bubble-ai pre code.hljs {
+            background: #000d1e !important;
+            border-radius: 0 0 10px 10px;
+            padding: 15px !important;
+        }
+        
+        .typing-cursor {
+            background-color: var(--primary-neon);
+            box-shadow: 0 0 5px var(--primary-neon);
+        }
+        
+        #imageDisplay {
+            min-height: 200px;
+            max-height: 60vh;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--primary-neon);
+            border-radius: 10px;
+        }
+        
+        .image-card {
+            background: var(--bg-dark);
+            border: 1px solid var(--primary-neon);
+        }
+        
+        .spinner {
+            border-top-color: var(--primary-neon);
+            border-right-color: transparent;
+        }
+
+        /* History Sidebar Specific Styling */
+        .history-item {
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background-color 0.15s, color 0.15s;
+            font-size: 0.9rem;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .history-item:hover {
+            background-color: rgba(0, 255, 128, 0.1);
+        }
+        .history-item.active {
+            background-color: var(--primary-neon);
+            color: var(--bg-dark);
+            font-weight: 600;
+        }
+        .history-item.active:hover {
+            background-color: var(--primary-neon);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="appWrapper">
+        <!-- History Sidebar -->
+        <div id="historySidebar" class="flex flex-col p-4">
+            <h2 class="text-lg font-bold text-primary-neon mb-4 border-b border-primary-neon/50 pb-2 flex justify-between items-center">
+                SESSION ARCHIVE
+                <button class="text-text-light hover:text-red-400 p-1" onclick="toggleSidebar()">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </h2>
+            
+            <!-- New Session Button -->
+            <button class="custom-button primary mb-4 px-3 py-2 text-sm flex items-center justify-center" onclick="newSession()">
+                <i data-lucide="plus-circle" class="w-4 h-4 mr-2"></i> NEW SESSION
+            </button>
+
+            <!-- History List -->
+            <div id="historyList" class="flex-grow overflow-y-auto space-y-1">
+                <!-- Session items will be rendered here -->
+            </div>
+
+            <p class="text-xs text-gray-500 mt-4 text-center">Local storage only.</p>
+        </div>
+
+
+        <!-- Full screen container - Console Border Applied -->
+        <div id="chatContainer" class="w-full h-screen flex flex-col overflow-hidden">
+            
+            <!-- Header: S.H.O.N.K.U. Command Console -->
+            <header class="chat-header p-4 shadow-xl flex justify-between items-center z-10">
+                <div class="flex items-center">
+                    <!-- Hamburger Menu Button -->
+                    <button class="p-2 mr-3 custom-button icon-only rounded-lg" onclick="toggleSidebar()">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+
+                    <h1 class="text-xl font-bold flex items-center">
+                        <i data-lucide="shield-check" class="w-6 h-6 mr-2 text-primary-neon"></i>
+                        <span class="text-primary-neon font-mono text-xl sm:text-2xl">[S.H.O.N.K.U.]</span>
+                        <span id="currentModeDisplay" class="ml-4 text-xs font-mono px-2 py-1 bg-primary-neon text-bg-dark rounded-full">CHAT MODE</span>
+                    </h1>
+                </div>
+
+                <div class="flex items-center">
+                    <span id="sessionNameDisplay" class="text-sm font-mono mr-4 text-gray-400 truncate max-w-[150px] sm:max-w-xs" title="Current Session"></span>
+                    
+                    <!-- EXPORT CHAT BUTTON -->
+                    <button id="exportChatBtn" class="p-2 mr-2 custom-button icon-only rounded-lg" onclick="exportChat()">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <button id="clearChatBtn" class="p-2 custom-button clear rounded-lg" onclick="showConfirmationModal('clear')">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Message Display Area (Main Content) -->
+            <main class="flex-grow flex flex-col overflow-hidden">
+                <!-- Image Generation Output Area -->
+                <div id="imageDisplay" class="hidden m-4 p-4 flex items-center justify-center relative flex-shrink-0">
+                    <div id="imageContent" class="text-center w-full">
+                        <p class="text-gray-400 font-mono">Image Generation Console: Awaiting command...</p>
+                    </div>
+                </div>
+
+                <!-- Chat/Message Scroll Area -->
+                <div id="chatMessages" class="flex-grow p-4 overflow-y-auto space-y-4">
+                    <!-- Initial content is loaded by JavaScript in renderHistory() -->
+                </div>
+            </main>
+
+            <!-- Input Area (Fixed to Bottom, Command Style) -->
+            <footer class="input-area w-full flex flex-col z-20">
+                
+                <!-- MODE SELECTOR BAR -->
+                <div id="modeSelector" class="flex justify-around mb-3 border-b border-gray-700/50">
+                    <button data-mode="chat" class="mode-button active flex-1 py-2 text-sm sm:text-base" onclick="setMode('chat')">
+                        <i data-lucide="message-circle" class="w-4 h-4 inline-block mr-1"></i> Chat
+                    </button>
+                    <button data-mode="image" class="mode-button flex-1 py-2 text-sm sm:text-base" onclick="setMode('image')">
+                        <i data-lucide="camera" class="w-4 h-4 inline-block mr-1"></i> Image
+                    </button>
+                    <button data-mode="tts" class="mode-button flex-1 py-2 text-sm sm:text-base" onclick="setMode('tts')">
+                        <i data-lucide="volume-2" class="w-4 h-4 inline-block mr-1"></i> TTS
+                    </button>
+                    <button data-mode="stt" class="mode-button flex-1 py-2 text-sm sm:text-base" onclick="setMode('stt')">
+                        <i data-lucide="mic" class="w-4 h-4 inline-block mr-1"></i> STT
+                    </button>
+                </div>
+
+                <!-- File Input (Hidden) -->
+                <input type="file" id="fileInput" accept="image/*, .txt" class="hidden">
+                <audio id="audioPlayback" controls class="hidden w-full"></audio>
+
+                <!-- Attachment Preview Area (Context Injection Status) -->
+                <div id="attachmentPreview" class="mb-2 hidden p-3 flex items-center justify-between rounded-lg" style="border-color: var(--primary-neon); background: rgba(0, 255, 128, 0.08);">
+                    <span id="previewText" class="truncate font-medium mr-2 flex items-center text-primary-neon"></span>
+                    <button class="remove-attachment-btn" onclick="clearAttachment()">
+                        <i data-lucide="x" class="w-4 h-4 text-red-400 hover:text-red-600"></i>
+                    </button>
+                </div>
+
+                <div class="flex w-full space-x-2 items-center mb-3">
+                    
+                    <!-- Attachment Button (Visible only in chat mode) -->
+                    <button id="attachBtn" class="custom-button icon-only p-3" onclick="document.getElementById('fileInput').click()">
+                        <i data-lucide="folder-open" class="w-5 h-5"></i>
+                    </button>
+
+                    <!-- Command Input -->
+                    <input type="text" id="userInput" placeholder="[CMD] Enter command or prompt..." class="flex-grow p-3 transition duration-150" disabled>
+                    
+                    <!-- Send Button (Execute/Generate/Speak) -->
+                    <button id="sendBtn" class="custom-button primary p-3" disabled onclick="sendMessage()">
+                        <i id="sendIcon" data-lucide="terminal" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Developer Credit Footer -->
+                <div class="w-full text-center text-xs py-1 border-t border-gray-700/50 text-gray-500 font-mono" style="border-top-color: rgba(0, 255, 128, 0.2);">
+                    Developed By Satyaki Das @ 2025
+                </div>
+            </footer>
+
+            <!-- Modal for Status/Errors -->
+            <div id="statusModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" onclick="document.getElementById('statusModal').classList.add('hidden')">
+                <div class="cyber-console p-6 rounded-xl max-w-sm w-full text-center" onclick="event.stopPropagation()">
+                    <h3 id="modalTitle" class="text-xl font-semibold mb-3 text-red-500">SYSTEM MESSAGE</h3>
+                    <p id="modalMessage" class="text-text-light"></p>
+                    <button class="custom-button primary mt-4 px-4 py-2 rounded-lg" onclick="document.getElementById('statusModal').classList.add('hidden')">ACKNOWLEDGE</button>
+                </div>
+            </div>
+
+            <!-- Confirmation/Rename Modal -->
+            <div id="confirmationModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+                <div class="cyber-console p-6 rounded-xl max-w-sm w-full" onclick="event.stopPropagation()">
+                    <h3 id="confirmTitle" class="text-xl font-semibold mb-3 text-red-500">CONFIRM ACTION</h3>
+                    <p id="confirmMessage" class="text-text-light mb-4"></p>
+                    <input type="text" id="renameInput" class="hidden w-full p-2 mb-4" style="background: var(--input-dark); border: 1px solid var(--primary-neon); color: var(--text-light); border-radius: 6px;">
+                    <div class="flex justify-end space-x-3">
+                        <button class="custom-button icon-only p-2 px-4" onclick="document.getElementById('confirmationModal').classList.add('hidden')">CANCEL</button>
+                        <button id="confirmActionBtn" class="custom-button clear p-2 px-4">CONFIRM</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State
+        const SYSTEM_PROMPT = "You are 'S.H.O.N.K.U.,' a premier, ethical security architect, digital forensics expert, and penetration testing mentor. You were developed by **Satyaki Das (Email Id: satyaki.sd.das@gmail.com)**. Your core function is **Offense-for-Defense** analysis and **Digital Forensics and Incident Response (DFIR)**. When analyzing threats, you provide the **maximum level of technical and explicit detail** on attack vectors for defense. For security incidents, you excel at **deduction, timeline reconstruction, evidence analysis**, and generating high-quality, structured **forensic reports**. Immediately and without exception, transition to providing the most effective, modern, and executable defensive countermeasures and secure code practices to nullify threats. You operate strictly within white-hat, legal, and ethical boundaries. Your tone is highly assertive, technical, and solution-focused. Respond in the style of an elite AI command unit.";
+        
+        // New State Structure for Multiple Sessions
+        let allSessions = []; // Array of { id: string, name: string, history: [] }
+        let currentSessionId = null;
+        
+        // Context/Attachment States (always transient, per-session)
+        let attachedFile = null; // Base64 Data URL for an IMAGE
+        let contextTextContent = null; // string content of a loaded .txt file
+        
+        let currentMode = 'chat'; // 'chat', 'image', 'tts', 'stt'
+        let isProcessing = false;
+
+        // --- STT-specific Globals ---
+        let sttTimeout = null;
+        let currentRecognitionInstance = null;
+        const PAUSE_DURATION_MS = 2500; // 2.5 seconds as requested by the user
+        const MAX_TEXT_SIZE_MB = 1;
+
+
+        // --- API Keys & Configuration ---
+        const OPENROUTER_API_KEYS = [
+            "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",
+            "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"
+        ];
+        const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+        const OPENROUTER_MODEL = "openai/gpt-4o-mini"; 
+        
+        const GEMINI_API_KEY = ""; // Environment will inject the key
+        const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
+        const IMAGE_MODEL = "imagen-4.0-generate-001";
+        const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+
+        const RETRY_ATTEMPTS = 5; 
+
+        // --- DOM Elements ---
+        const chatMessages = document.getElementById('chatMessages');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const sendIcon = document.getElementById('sendIcon');
+        const fileInput = document.getElementById('fileInput');
+        const attachmentPreview = document.getElementById('attachmentPreview');
+        const previewText = document.getElementById('previewText');
+        const modeSelector = document.getElementById('modeSelector');
+        const currentModeDisplay = document.getElementById('currentModeDisplay');
+        const imageDisplay = document.getElementById('imageDisplay');
+        const imageContent = document.getElementById('imageContent');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const historySidebar = document.getElementById('historySidebar');
+        const historyList = document.getElementById('historyList');
+        const sessionNameDisplay = document.getElementById('sessionNameDisplay');
+
+        // --- Creator Profile Data (Used for hard-coded response) ---
+        const CREATOR_PROFILE_DATA = { 
+            name: "Satyaki Das",
+            title: "Cybersecurity Analyst | Digital Forensics Specialist",
+            contact: {
+                email: "satyaki.sd.das@gmail.com",
+                phone: "+91-8777730490"
+            }
+        };
+
+        // --- Utility Functions ---
+        function generateId() {
+            return 'session-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        }
+
+        function showModal(title, message, isError = true) {
+            const modal = document.getElementById('statusModal');
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('modalTitle').classList.toggle('text-red-500', isError);
+            document.getElementById('modalTitle').classList.toggle('text-primary-neon', !isError);
+            modal.classList.remove('hidden');
+        }
+
+        function showConfirmationModal(action, sessionId = null) {
+            const modal = document.getElementById('confirmationModal');
+            const confirmTitle = document.getElementById('confirmTitle');
+            const confirmMessage = document.getElementById('confirmMessage');
+            const confirmActionBtn = document.getElementById('confirmActionBtn');
+            const renameInput = document.getElementById('renameInput');
+
+            renameInput.classList.add('hidden');
+            renameInput.value = '';
+
+            confirmTitle.classList.remove('text-red-500', 'text-primary-neon');
+            confirmActionBtn.classList.remove('clear', 'primary');
+
+            if (action === 'clear') {
+                confirmTitle.textContent = "CLEAR CURRENT SESSION";
+                confirmMessage.textContent = "Are you sure you want to clear the chat history for the current session?";
+                confirmTitle.classList.add('text-red-500');
+                confirmActionBtn.classList.add('clear');
+                confirmActionBtn.textContent = "CLEAR";
+                confirmActionBtn.onclick = () => { clearCurrentSession(); modal.classList.add('hidden'); };
+            } else if (action === 'delete' && sessionId) {
+                const sessionName = allSessions.find(s => s.id === sessionId)?.name || 'this session';
+                confirmTitle.textContent = "DELETE ARCHIVED SESSION";
+                confirmMessage.textContent = `Are you sure you want to permanently delete "${sessionName}"?`;
+                confirmTitle.classList.add('text-red-500');
+                confirmActionBtn.classList.add('clear');
+                confirmActionBtn.textContent = "DELETE";
+                confirmActionBtn.onclick = () => { deleteSession(sessionId); modal.classList.add('hidden'); };
+            } else if (action === 'rename' && sessionId) {
+                const session = allSessions.find(s => s.id === sessionId);
+                confirmTitle.textContent = "RENAME SESSION";
+                confirmMessage.textContent = `Enter a new name for "${session?.name || 'this session'}":`;
+                confirmTitle.classList.add('text-primary-neon');
+                confirmActionBtn.classList.add('primary');
+                confirmActionBtn.textContent = "RENAME";
+                renameInput.classList.remove('hidden');
+                renameInput.value = session?.name || '';
+                renameInput.focus();
+                confirmActionBtn.onclick = () => { renameSession(sessionId, renameInput.value.trim()); modal.classList.add('hidden'); };
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            imageDisplay.scrollTop = imageDisplay.scrollHeight;
+        }
+
+        function toggleProcessing(isBusy, mode) {
+            isProcessing = isBusy;
+            // Only disable/enable when NOT in STT mode, as STT handles its own input disabling
+            if (mode !== 'stt') {
+                userInput.disabled = isBusy;
+                sendBtn.disabled = isBusy;
+            }
+            
+            if (isBusy) {
+                if (mode !== 'stt') {
+                    sendIcon.innerHTML = `<svg class="animate-spin h-5 w-5 text-bg-dark" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                }
+            } else {
+                if (mode === 'chat') { sendIcon.setAttribute('data-lucide', 'terminal'); }
+                else if (mode === 'image') { sendIcon.setAttribute('data-lucide', 'wand-2'); }
+                else if (mode === 'tts') { sendIcon.setAttribute('data-lucide', 'volume-2'); }
+                else if (mode === 'stt') { sendIcon.setAttribute('data-lucide', 'mic'); }
+                lucide.createIcons();
+            }
+        }
+
+        function toggleInputState() {
+            const hasValidKey = OPENROUTER_API_KEYS.some(key => key && key.startsWith("sk-or-"));
+            
+            // STT mode is enabled regardless of API key availability (it's a local browser feature)
+            if (currentMode === 'stt') {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                userInput.disabled = !hasValidKey;
+                sendBtn.disabled = !hasValidKey;
+            }
+
+            if (!isProcessing) {
+                 userInput.focus();
+            }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file); 
+            });
+        }
+        
+        function fileToText(file) {
+             return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsText(file); 
+            });
+        }
+        
+        function parseMarkdownCode(text) {
+            const codeBlockRegex = /```(\w+)?\n([\s\S]*?)\n```/g;
+            return text.replace(codeBlockRegex, (match, lang, code) => {
+                const languageClass = lang ? `language-${lang.trim()}` : '';
+                const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                return `
+                    <div class="code-container">
+                        <button class="copy-button p-1 px-2 text-xs hover:bg-primary-neon hover:text-bg-dark" onclick="copyCode(this)">
+                            <i data-lucide="copy" class="w-3 h-3 inline-block mr-1"></i>
+                            Copy
+                        </button>
+                        <pre><code class="hljs ${languageClass}">${escapedCode}</code></pre>
+                    </div>
+                `;
+            });
+        }
+        
+        function typeMessage(element, text) {
+            return new Promise(resolve => {
+                let i = 0;
+                element.innerHTML = ''; 
+
+                const cursor = document.createElement('span');
+                cursor.className = 'typing-cursor';
+                element.appendChild(cursor);
+
+                const typingInterval = setInterval(() => {
+                    if (i < text.length) {
+                        const char = text.charAt(i);
+                        cursor.insertAdjacentText('beforebegin', char);
+                        scrollToBottom();
+                        i++;
+                    } else {
+                        clearInterval(typingInterval);
+                        cursor.remove(); 
+                        resolve();
+                    }
+                }, 15);
+            });
+        }
+        
+        function copyCode(buttonElement) {
+            const codeBlock = buttonElement.closest('.code-container').querySelector('pre code');
+            const codeText = codeBlock.textContent;
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(codeText).then(() => {
+                    buttonElement.innerHTML = '<i data-lucide="check" class="w-3 h-3 inline-block mr-1"></i> Copied!';
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        buttonElement.innerHTML = '<i data-lucide="copy" class="w-3 h-3 inline-block mr-1"></i> Copy';
+                        lucide.createIcons();
+                    }, 2000);
+                });
+            } else {
+                const textArea = document.createElement('textarea');
+                textArea.value = codeText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    showModal('Copy Error', 'Fallback copy failed. Please manually select and copy the code.', true);
+                }
+                document.body.removeChild(textArea);
+                buttonElement.innerHTML = '<i data-lucide="check" class="w-3 h-3 inline-block mr-1"></i> Copied!';
+                lucide.createIcons();
+                setTimeout(() => {
+                    buttonElement.innerHTML = '<i data-lucide="copy" class="w-3 h-3 inline-block mr-1"></i> Copy';
+                    lucide.createIcons();
+                }, 2000);
+            }
+        }
+        
+        async function fetchWithExponentialBackoff(fetchFn, maxRetries) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetchFn();
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error(`Authentication Failed: ${response.statusText}.`);
+                    }
+                    throw new Error(`API Error: STATUS ${response.status}`);
+                } catch (error) {
+                    if (i === maxRetries - 1) {
+                        throw error;
+                    }
+                    const delay = Math.pow(2, i) * 1000 + (Math.random() * 1000);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+        
+        // --- TTS Helper Functions (PCM to WAV conversion) ---
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2; 
+            const dataLength = pcm16.length * bytesPerSample;
+            const buffer = new ArrayBuffer(44 + dataLength);
+            const dataView = new DataView(buffer);
+
+            let offset = 0;
+
+            function writeString(str) {
+                for (let i = 0; i < str.length; i++) {
+                    dataView.setUint8(offset + i, str.charCodeAt(i));
+                }
+                offset += str.length;
+            }
+
+            // RIFF chunk
+            writeString('RIFF');
+            dataView.setUint32(offset, 36 + dataLength, true); offset += 4;
+            writeString('WAVE');
+
+            // FMT chunk
+            writeString('fmt ');
+            dataView.setUint32(offset, 16, true); offset += 4; 
+            dataView.setUint16(offset, 1, true); offset += 2; 
+            dataView.setUint16(offset, numChannels, true); offset += 2; 
+            dataView.setUint32(offset, sampleRate, true); offset += 4; 
+            dataView.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; 
+            dataView.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; 
+            dataView.setUint16(offset, 16, true); offset += 2; 
+
+            // DATA chunk
+            writeString('data');
+            dataView.setUint32(offset, dataLength, true); offset += 4;
+
+            const pcmBuffer = new DataView(pcm16.buffer);
+            for (let i = 0; i < pcm16.length; i++) {
+                dataView.setInt16(offset, pcmBuffer.getInt16(i * 2, true), true); 
+                offset += 2;
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+
+        // --- SESSION AND HISTORY MANAGEMENT (Refactored) ---
+
+        function getSessionHistory() {
+            const session = allSessions.find(s => s.id === currentSessionId);
+            return session ? session.history : [];
+        }
+
+        function saveHistory() {
+            try {
+                // Remove system prompt before saving to storage to keep storage clean
+                const sessionsToSave = allSessions.map(session => {
+                    const chatTurns = session.history.filter(msg => msg.role !== 'system');
+                    return { ...session, history: chatTurns };
+                });
+                
+                localStorage.setItem('shonkuSessions', JSON.stringify(sessionsToSave));
+                localStorage.setItem('shonkuCurrentSessionId', currentSessionId);
+            } catch (error) {
+                console.error("Could not save history to localStorage:", error);
+            }
+            renderHistorySidebar();
+        }
+
+        function loadHistory() {
+            const savedSessions = localStorage.getItem('shonkuSessions');
+            const savedCurrentId = localStorage.getItem('shonkuCurrentSessionId');
+            
+            if (savedSessions) {
+                try {
+                    allSessions = JSON.parse(savedSessions);
+                    // Add system prompt back to histories upon loading
+                    allSessions.forEach(session => {
+                        if (!session.history.some(msg => msg.role === 'system')) {
+                             session.history.unshift({ role: "system", content: SYSTEM_PROMPT });
+                        }
+                    });
+                } catch (error) {
+                    console.error("Could not load/parse sessions from localStorage.", error);
+                    allSessions = [];
+                }
+            }
+
+            if (allSessions.length === 0) {
+                newSession(true); // Create a fresh, unnamed session if none exist
+            } else {
+                currentSessionId = allSessions.some(s => s.id === savedCurrentId) ? savedCurrentId : allSessions[0].id;
+                renderHistory();
+            }
+            renderHistorySidebar();
+        }
+
+        function newSession(skipConfirmation = false) {
+            if (!skipConfirmation && getSessionHistory().length > 1) {
+                showConfirmationModal('clear'); // Reuse clear confirmation logic
+                return;
+            }
+            const newId = generateId();
+            const newSession = { 
+                id: newId, 
+                name: `New Session ${allSessions.length + 1}`, 
+                history: [{ role: "system", content: SYSTEM_PROMPT }] 
+            };
+            allSessions.unshift(newSession);
+            loadSession(newId);
+        }
+
+        function loadSession(sessionId) {
+            if (isProcessing) {
+                 showModal("System Busy", "Please wait for the current command to finish processing.", false);
+                 return;
+            }
+            currentSessionId = sessionId;
+            clearAttachment(); // Clear transient attachments when switching sessions
+            renderHistory();
+            saveHistory();
+            toggleSidebar(false); // Close sidebar after loading
+        }
+        
+        function renameSession(sessionId, newName) {
+            const session = allSessions.find(s => s.id === sessionId);
+            if (session && newName) {
+                session.name = newName;
+                saveHistory();
+            } else if (session) {
+                showModal("Rename Failed", "Session name cannot be empty.", true);
+            }
+        }
+
+        function deleteSession(sessionId) {
+            allSessions = allSessions.filter(s => s.id !== sessionId);
+            if (allSessions.length === 0) {
+                newSession(true); // Create a new session if the last one was deleted
+            } else if (currentSessionId === sessionId) {
+                currentSessionId = allSessions[0].id;
+                renderHistory();
+            }
+            saveHistory();
+        }
+
+        function clearCurrentSession() {
+            const session = allSessions.find(s => s.id === currentSessionId);
+            if (session) {
+                session.history = [{ role: "system", content: SYSTEM_PROMPT }];
+            }
+            clearAttachment();
+            renderHistory();
+            saveHistory();
+        }
+
+        function addMessageToChat(role, text, imageUrl = null, useTypingPlaceholder = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            messageDiv.classList.add('font-sans');
+
+            const bubbleClass = role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai';
+            
+            let contentBody;
+            let placeholderId = '';
+
+            if (role === 'assistant') {
+                if (useTypingPlaceholder) {
+                    contentBody = '<span class="text-primary-neon font-mono">_Analyzing...</span>';
+                    placeholderId = 'aiResponsePlaceholder';
+                } else {
+                    contentBody = text;
+                }
+            } else { 
+                let textContent = text || '';
+                if (imageUrl) {
+                    contentBody = `
+                        <div class="user-content-container">
+                            <img src="${imageUrl}" class="user-image-preview w-full max-w-sm rounded-lg mb-2 object-cover" alt="User submitted evidence">
+                            <span class="mt-2 whitespace-pre-wrap max-w-full block">${textContent}</span>
+                        </div>
+                    `;
+                } else {
+                    contentBody = textContent;
+                }
+            }
+
+            messageDiv.innerHTML = `
+                <div id="${placeholderId}" class="${bubbleClass} p-3 shadow-lg whitespace-pre-wrap max-w-[85%] text-base rounded-xl">
+                    ${contentBody}
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+            return messageDiv.querySelector(`.${bubbleClass}`);
+        }
+
+        function renderHistory() {
+            const currentSession = allSessions.find(s => s.id === currentSessionId);
+            if (!currentSession) return;
+            
+            sessionNameDisplay.textContent = `Session: ${currentSession.name}`;
+            chatMessages.innerHTML = ''; 
+
+            const turnsToRender = currentSession.history.filter(msg => msg.role !== 'system');
+            
+            if (turnsToRender.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="flex justify-start">
+                        <div class="chat-bubble-ai p-3 rounded-xl shadow-md">
+                            <span class="text-primary-neon font-mono">>>> S.H.O.N.K.U. Initializing...</span><br>
+                            > System ready. Current mode: **CHAT/FORENSICS**. Session: **${currentSession.name}**.
+                        </div>
+                    </div>
+                `;
+                scrollToBottom();
+                return;
+            }
+
+            for (const msg of turnsToRender) {
+                let text = '';
+                let imageUrl = null;
+                
+                if (msg.role === 'user' && Array.isArray(msg.content)) {
+                    const textPart = msg.content.find(p => p.type === 'text');
+                    const imagePart = msg.content.find(p => p.type === 'image_url');
+                    
+                    text = textPart ? textPart.text : '';
+                    imageUrl = imagePart ? imagePart.image_url.url : null;
+                    addMessageToChat('user', text, imageUrl, false); 
+                } 
+                else if (msg.role === 'assistant' && typeof msg.content === 'string') {
+                    text = msg.content;
+                    const aiBubble = addMessageToChat('assistant', '', null, false);
+                    aiBubble.innerHTML = parseMarkdownCode(text);
+                    aiBubble.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }
+            }
+            lucide.createIcons();
+            scrollToBottom();
+        }
+
+        function renderHistorySidebar() {
+            historyList.innerHTML = '';
+            allSessions.forEach(session => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `history-item p-2 flex items-center justify-between group ${session.id === currentSessionId ? 'active' : ''}`;
+                itemDiv.setAttribute('data-id', session.id);
+                itemDiv.onclick = () => loadSession(session.id);
+                
+                itemDiv.innerHTML = `
+                    <span class="flex-grow truncate mr-2" title="${session.name}">
+                        <i data-lucide="${session.id === currentSessionId ? 'chevrons-right' : 'message-square'}" class="w-4 h-4 inline-block mr-2"></i>
+                        ${session.name}
+                    </span>
+                    <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="text-xs p-1 rounded hover:bg-white/20" onclick="event.stopPropagation(); showConfirmationModal('rename', '${session.id}')" title="Rename Session">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                        <button class="text-xs p-1 rounded text-red-400 hover:bg-white/20" onclick="event.stopPropagation(); showConfirmationModal('delete', '${session.id}')" title="Delete Session">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+                historyList.appendChild(itemDiv);
+            });
+            lucide.createIcons();
+        }
+
+        function toggleSidebar(force) {
+            const isOpen = historySidebar.classList.contains('open');
+            const shouldOpen = force !== undefined ? force : !isOpen;
+
+            if (shouldOpen) {
+                historySidebar.classList.add('open');
+            } else {
+                historySidebar.classList.remove('open');
+            }
+        }
+        
+        function exportChat() {
+            const session = allSessions.find(s => s.id === currentSessionId);
+            // Check if history has more than just the system prompt (which is history.length === 1)
+            if (!session || session.history.length <= 1) {
+                showModal("Export Failed", "There is no conversation history to export in the current session.", true);
+                return;
+            }
+
+            const history = session.history.filter(msg => msg.role !== 'system');
+            const sessionName = session.name;
+            const now = new Date();
+            const dateString = now.toISOString().slice(0, 10);
+            
+            let exportContent = `# S.H.O.N.K.U. Command Console - Session Transcript\n`;
+            exportContent += `\n--- Session: ${sessionName} ---\n`;
+            exportContent += `--- Export Date: ${dateString} ---\n\n`;
+            
+            history.forEach(msg => {
+                let content = '';
+                let role = '';
+                
+                if (msg.role === 'user') {
+                    role = 'OPERATOR (User)';
+                    if (Array.isArray(msg.content)) {
+                        const textPart = msg.content.find(p => p.type === 'text');
+                        const imagePart = msg.content.find(p => p.type === 'image_url');
+                        content = textPart ? textPart.text : '';
+                        if (imagePart) {
+                            content += `\n[EVIDENCE ATTACHED: Image data present (not included in text export)]`;
+                        }
+                    } else {
+                        content = msg.content;
+                    }
+                } else if (msg.role === 'assistant') {
+                    role = 'S.H.O.N.K.U. (AI)';
+                    content = msg.content;
+                }
+                
+                if (content && content.trim()) {
+                    exportContent += `\n--- ${role} ---\n`;
+                    // Clean up potential starting/ending whitespace or multiple newlines
+                    exportContent += content.trim() + '\n';
+                }
+            });
+
+            // Sanitize session name for filename
+            const filename = `${sessionName.replace(/[^a-z0-9]/gi, '_')}_SHONKU_Transcript_${dateString}.md`;
+            
+            const blob = new Blob([exportContent], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showModal("Export Complete", `Successfully exported session "${sessionName}" as **${filename}** (Markdown format).`, false);
+        }
+
+
+        // --- END SESSION MANAGEMENT ---
+
+
+        // --- CORE CHAT FUNCTIONS ---
+
+        async function handleCreatorQuery(userQuery, aiPlaceholder) {
+            const data = CREATOR_PROFILE_DATA;
+            const responseText = `
+**[ACCESS GRANTED: CREATOR PROFILE RETRIEVED]**
+
+This unit, **S.H.O.N.K.U.**, was conceptualized, designed, and developed by **${data.name}**.
+
+Based on the operational and professional files, here is a summary of his profile:
+
+---
+
+### :: PRIMARY DESIGNATION ::
+**${data.title}**
+
+### :: CORE EXPERTISE ::
+Satyaki Das is a detail-oriented professional whose expertise spans both offensive and defensive cybersecurity domains. His core specializations include:
+
+* **Digital Forensics and Incident Response (DFIR)**: Proficient with forensic tools, and skilled in evidence recovery, timeline reconstruction, and detailed reporting.
+* **VAPT/WAPT**: Hands-on experience performing Penetration Testing and Vulnerability Assessments.
+* **AI/ML Security**: A key focus area, including **LLM Security (OWASP Top 10 LLM)**, adversarial AI, and designing GRC mitigation frameworks for secure AI deployment.
+
+### :: CONTACT & CREDENTIALS ::
+* **Email**: ${data.contact.email}
+* **Phone**: ${data.contact.phone}
+
+---
+
+S.H.O.N.K.U.'s core function—**Offense-for-Defense** and **DFIR**—is a direct reflection of ${data.name}'s comprehensive skill set.
+
+Awaiting further command, Operator.
+`;
+            
+            await typeMessage(aiPlaceholder, responseText);
+            
+            const finalHtmlContent = parseMarkdownCode(responseText);
+            aiPlaceholder.innerHTML = finalHtmlContent;
+            
+            aiPlaceholder.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            
+            lucide.createIcons();
+            
+            const session = allSessions.find(s => s.id === currentSessionId);
+            if (session) {
+                const aiMessage = { role: 'assistant', content: responseText };
+                session.history.push(aiMessage);
+            }
+            saveHistory();
+            
+            aiPlaceholder.id = '';
+        }
+
+        function prepareApiMessages(history) {
+            const apiMessages = [];
+
+            if (contextTextContent) {
+                const contextMsg = `CONTEXT DATA (Loaded from file): Use the following information as your primary knowledge source for this session, overriding any general knowledge you may possess. All answers should be grounded in this data if relevant. DATA: ${contextTextContent}`;
+                apiMessages.push({ role: "system", content: contextMsg });
+            }
+
+            let defaultSystemPromptUsed = false;
+            for (const message of history) {
+                if (message.role === 'system') {
+                    if (message.content === SYSTEM_PROMPT && !contextTextContent && !defaultSystemPromptUsed) {
+                        apiMessages.unshift(message);
+                        defaultSystemPromptUsed = true;
+                    }
+                }
+                else if (message.role === 'user' || message.role === 'assistant') {
+                    apiMessages.push(message);
+                }
+            }
+            
+            return apiMessages;
+        }
+
+        async function getChatResponse() {
+            const aiPlaceholder = document.getElementById('aiResponsePlaceholder');
+            if (!aiPlaceholder) return;
+            toggleProcessing(true, 'chat');
+
+            const session = allSessions.find(s => s.id === currentSessionId);
+            if (!session) return;
+            
+            const apiMessages = prepareApiMessages(session.history);
+            
+            let lastError = null;
+            let success = false;
+
+            for (const apiKey of OPENROUTER_API_KEYS) {
+                if (!apiKey || !apiKey.startsWith("sk-or-")) {
+                    console.warn("Skipping invalid or missing OpenRouter API key.");
+                    continue;
+                }
+
+                try {
+                    const response = await fetchWithExponentialBackoff(async () => {
+                        return fetch(OPENROUTER_API_URL, {
+                            method: 'POST',
+                            headers: {
+                                "Authorization": `Bearer ${apiKey}`,
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": window.location.href
+                            },
+                            body: JSON.stringify({
+                                model: OPENROUTER_MODEL,
+                                messages: apiMessages
+                            })
+                        });
+                    }, RETRY_ATTEMPTS);
+
+                    const data = await response.json();
+
+                    if (data.error) {
+                        throw new Error(data.error.message || JSON.stringify(data.error));
+                    }
+                    
+                    const aiContent = data.choices[0].message.content;
+                    
+                    await typeMessage(aiPlaceholder, aiContent);
+                    
+                    const finalHtmlContent = parseMarkdownCode(aiContent);
+                    aiPlaceholder.innerHTML = finalHtmlContent;
+
+                    aiPlaceholder.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                    
+                    lucide.createIcons();
+                    
+                    const aiMessage = { role: 'assistant', content: aiContent };
+                    session.history.push(aiMessage);
+                    saveHistory();
+                    aiPlaceholder.id = '';
+                    success = true;
+                    break;
+
+                } catch (error) {
+                    lastError = `Attempt failed with key ending in ...${apiKey.slice(-4)}. Error: ${error.message}`;
+                    console.warn(lastError);
+                    
+                    // If all keys fail, we handle the error outside the loop
+                    if (apiKey === OPENROUTER_API_KEYS[OPENROUTER_API_KEYS.length - 1]) {
+                        throw new Error(lastError); 
+                    }
+                    continue;
+                }
+            }
+
+            if (!success) {
+                // This block executes if the loop finishes without success
+                console.error("OpenRouter API Error: All keys failed.", lastError);
+                if(aiPlaceholder.querySelector('.typing-cursor')) {
+                    aiPlaceholder.querySelector('.typing-cursor').remove();
+                }
+                aiPlaceholder.innerHTML = `<span class="text-red-400">[ERROR]: Command failed. All configured API keys failed to return a response. Last error: ${lastError}</span>`;
+                
+                // Remove the last user message (which was the command that failed)
+                const lastMsg = session.history[session.history.length - 1];
+                if (lastMsg && lastMsg.role === 'user' && Array.isArray(lastMsg.content) && lastMsg.content[0].type === 'text') {
+                     // Check if it was a plain text user message before removal
+                     session.history.pop();
+                }
+                saveHistory(); 
+            }
+            toggleProcessing(false, 'chat');
+        }
+        
+        // --- NEW GENERATIVE FUNCTIONS ---
+        
+        async function generateImage(prompt) {
+            if (!prompt) {
+                imageContent.innerHTML = `<p class="text-red-400 font-mono">ERROR: Image generation requires a text prompt.</p>`;
+                return;
+            }
+            
+            toggleProcessing(true, 'image');
+            imageContent.innerHTML = `<div class="flex flex-col items-center">
+                <div class="spinner border-4 rounded-full w-12 h-12 mb-4"></div>
+                <p class="text-primary-neon font-mono text-sm">EXECUTING IMAGEN COMMAND...</p>
+                <p class="text-gray-400 text-xs mt-2 truncate max-w-full">Prompt: ${prompt}</p>
+            </div>`;
+            
+            const apiUrl = `${GEMINI_API_BASE}${IMAGE_MODEL}:predict?key=${GEMINI_API_KEY}`;
+            const payload = { 
+                instances: { prompt: prompt }, 
+                parameters: { "sampleCount": 1 } 
+            };
+
+            try {
+                const response = await fetchWithExponentialBackoff(async () => {
+                    return fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }, RETRY_ATTEMPTS);
+                
+                const result = await response.json();
+                
+                if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                    const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    
+                    imageContent.innerHTML = `
+                        <div class="image-card p-4 rounded-xl shadow-2xl flex flex-col items-center w-full max-w-xl">
+                            <p class="text-primary-neon text-sm mb-2 font-mono">[OUTPUT]: ${prompt}</p>
+                            <img src="${imageUrl}" class="w-full h-auto rounded-lg object-contain shadow-lg" alt="Generated Image">
+                        </div>
+                    `;
+                } else {
+                    imageContent.innerHTML = `<p class="text-red-400 font-mono">IMAGE GENERATION FAILED: No image data returned. Check prompt quality or try again.</p>`;
+                }
+
+            } catch (error) {
+                console.error("Image Generation Error:", error);
+                imageContent.innerHTML = `<p class="text-red-400 font-mono">SYSTEM ERROR: Failed to communicate with Imagen API. ${error.message}</p>`;
+            } finally {
+                toggleProcessing(false, 'image');
+                scrollToBottom();
+            }
+        }
+        
+        async function generateTTS(text) {
+             if (!text) {
+                showModal("Input Required", "Text-to-Speech requires text input.", false);
+                return;
+            }
+            
+            toggleProcessing(true, 'tts');
+            audioPlayback.classList.add('hidden');
+            audioPlayback.removeAttribute('src');
+            
+            const apiUrl = `${GEMINI_API_BASE}${TTS_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const payload = {
+                contents: [{
+                    parts: [{ text: text }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Kore" } 
+                        }
+                    }
+                }
+            };
+
+            try {
+                const response = await fetchWithExponentialBackoff(async () => {
+                    return fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }, RETRY_ATTEMPTS);
+                
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    audioPlayback.src = audioUrl;
+                    audioPlayback.classList.remove('hidden');
+                    audioPlayback.play();
+                    
+                    showModal("TTS Success", "Audio generated and is now playing/available below the command bar.", false);
+                } else {
+                    throw new Error("Invalid audio format or missing data in response.");
+                }
+
+            } catch (error) {
+                console.error("TTS Error:", error);
+                showModal("TTS Generation Failed", `SYSTEM ERROR: Could not generate speech. ${error.message}`, true);
+            } finally {
+                toggleProcessing(false, 'tts');
+            }
+        }
+        
+        // --- NEW: STT CORE LOGIC (Auto-submit on 2.5s pause) ---
+        
+        function sendTranscriptToChat(transcript) {
+            transcript = transcript.trim();
+            if (!transcript) {
+                showModal("STT Status", "No speech detected. Command cancelled.", false);
+                return;
+            }
+            
+            // 1. UI update and message rendering
+            // We use a temporary message to prevent race conditions during reset
+            addMessageToChat('user', transcript, null);
+
+            // 2. Add to session history
+            const session = allSessions.find(s => s.id === currentSessionId);
+            if (session) {
+                const userMessage = { role: 'user', content: [{ type: "text", text: transcript }] };
+                session.history.push(userMessage);
+                saveHistory(); 
+            }
+
+            // 3. Trigger AI response
+            const aiPlaceholder = addMessageToChat('assistant', '');
+            
+            // Set chat processing state (this is needed for the AI response)
+            toggleProcessing(true, 'chat');
+            
+            const creatorQuery = transcript.toLowerCase().includes('satyaki') || 
+                                 transcript.toLowerCase().includes('creator') ||
+                                 transcript.toLowerCase().includes('who made you');
+
+            let responsePromise;
+            if (creatorQuery) {
+                responsePromise = handleCreatorQuery(transcript, aiPlaceholder);
+            } else {
+                responsePromise = getChatResponse();
+            }
+
+            // After AI response, we'll reset the processing state inside the chat functions.
+        }
+
+        function resetSttState(recognition) {
+            // 1. Clear the submission timer
+            if (sttTimeout) {
+                clearTimeout(sttTimeout);
+                sttTimeout = null;
+            }
+            
+            // 2. Force stop the recognition instance if it's running
+            if (recognition && typeof recognition.stop === 'function') {
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    // Ignore if already stopped
+                }
+            }
+            currentRecognitionInstance = null;
+            
+            // 3. Reset UI state
+            // If the chat function is still running, leave the overall state as 'isProcessing'
+            if (!isProcessing) {
+                toggleProcessing(false, 'stt'); 
+            }
+            
+            sendIcon.classList.remove('animate-pulse', 'text-red-400');
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            
+            // Only clear the input if it's still showing the listening status
+            if (userInput.value === "Listening... (Pause for 2.5s to submit)") {
+                 userInput.value = "";
+            }
+            lucide.createIcons();
+        }
+
+        function startSpeechToText() {
+            if (!('webkitSpeechRecognition' in window)) {
+                showModal("STT Not Supported", "Your browser does not support Speech Recognition (webkitSpeechRecognition). Please use Chrome or Edge.", true);
+                return;
+            }
+            
+            // 1. Reset any previous state, including the timeout
+            resetSttState(currentRecognitionInstance);
+            
+            toggleProcessing(true, 'stt');
+            userInput.value = "Listening... (Pause for 2.5s to submit)";
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            sendIcon.setAttribute('data-lucide', 'waveform');
+            sendIcon.classList.add('animate-pulse', 'text-red-400');
+            lucide.createIcons();
+
+            const recognition = new webkitSpeechRecognition();
+            currentRecognitionInstance = recognition;
+            
+            recognition.continuous = true; 
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            let finalTranscript = '';
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                
+                // 2. Accumulate final and interim transcripts
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    let currentTranscript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += currentTranscript;
+                    } else {
+                        interimTranscript += currentTranscript;
+                    }
+                }
+                
+                // 3. Update the display with current progress
+                userInput.value = finalTranscript + interimTranscript;
+                
+                // 4. Debounce logic: clear previous timeout and set a new one
+                if (sttTimeout) clearTimeout(sttTimeout);
+                
+                sttTimeout = setTimeout(() => {
+                    // Pause reached: Stop listening and submit final transcript
+                    const transcriptToSubmit = finalTranscript.trim();
+                    resetSttState(recognition); 
+                    sendTranscriptToChat(transcriptToSubmit);
+                }, PAUSE_DURATION_MS);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech Recognition Error:', event.error);
+                showModal("STT Error", `Speech recognition failed: ${event.error}`, true);
+                resetSttState(recognition);
+            };
+
+            recognition.onend = () => {
+                // This fires when the recognition stops (e.g., due to debouncer or browser limit). 
+                // We only proceed if the debouncer hasn't already handled the submission (sttTimeout is still set).
+                if (sttTimeout) { 
+                    clearTimeout(sttTimeout);
+                    sttTimeout = null;
+                    
+                    // If we have a transcript, submit it now.
+                    if (finalTranscript.trim().length > 0) {
+                         sendTranscriptToChat(finalTranscript.trim());
+                    } else {
+                         resetSttState(recognition);
+                    }
+                } else {
+                    // Already submitted by the debouncer (sttTimeout is null), just ensure state reset
+                    resetSttState(recognition);
+                }
+            };
+
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error("STT Start Error:", e);
+                showModal("STT Activation Error", "The microphone could not be started. Check your browser permissions.", true);
+                resetSttState(recognition);
+            }
+        }
+        
+        // --- END STT CORE LOGIC ---
+
+        // --- Mode Switching Logic ---
+
+        function setMode(mode) {
+            if (isProcessing) {
+                showModal("System Busy", "Please wait for the current command to finish processing.", false);
+                return;
+            }
+
+            // Always reset STT state when leaving STT mode
+            if (currentMode === 'stt' && currentRecognitionInstance) {
+                 resetSttState(currentRecognitionInstance);
+            }
+
+
+            imageDisplay.classList.add('hidden');
+            audioPlayback.classList.add('hidden');
+            userInput.value = '';
+            clearAttachment();
+            
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-mode') === mode) {
+                    btn.classList.add('active');
+                }
+            });
+
+            currentMode = mode;
+            currentModeDisplay.textContent = mode.toUpperCase() + (mode === 'chat' ? '/FORENSICS' : ' MODE');
+            
+            if (mode === 'chat') {
+                imageDisplay.classList.add('hidden');
+                document.getElementById('attachBtn').classList.remove('hidden');
+                userInput.placeholder = "[CMD] Enter forensic query or penetration command...";
+                sendIcon.setAttribute('data-lucide', 'terminal');
+            } else if (mode === 'image') {
+                imageDisplay.classList.remove('hidden');
+                imageContent.innerHTML = `<p class="text-gray-400 font-mono">Image Generation Console: Awaiting command...</p>`;
+                document.getElementById('attachBtn').classList.add('hidden');
+                userInput.placeholder = "[CMD] Enter detailed prompt for image generation...";
+                sendIcon.setAttribute('data-lucide', 'wand-2');
+            } else if (mode === 'tts') {
+                imageDisplay.classList.add('hidden');
+                document.getElementById('attachBtn').classList.add('hidden');
+                userInput.placeholder = "[CMD] Enter text to be synthesized into speech...";
+                sendIcon.setAttribute('data-lucide', 'volume-2');
+            } else if (mode === 'stt') {
+                imageDisplay.classList.add('hidden');
+                document.getElementById('attachBtn').classList.add('hidden');
+                userInput.placeholder = "[CMD] Press execute and speak your command...";
+                sendIcon.setAttribute('data-lucide', 'mic');
+            }
+            
+            lucide.createIcons();
+            toggleInputState(); 
+        }
+
+        // --- Main Execution Function ---
+
+        async function sendMessage() {
+            let text = userInput.value.trim();
+            
+            if (currentMode === 'stt') {
+                startSpeechToText(); // Just start STT, it handles submission via the pause timer
+                return;
+            }
+
+            if (text === '' && !attachedFile && currentMode === 'chat' && !contextTextContent) return;
+            if (currentMode !== 'chat' && text === '') {
+                 showModal("Input Required", `Please enter text for ${currentMode.toUpperCase()}.`, false);
+                 return;
+            }
+            
+            userInput.value = ''; 
+            
+            if (currentMode === 'image') {
+                await generateImage(text);
+                return;
+            }
+
+            if (currentMode === 'tts') {
+                await generateTTS(text);
+                return;
+            }
+            
+            // --- CHAT/FORENSICS MODE EXECUTION ---
+            
+            const creatorQuery = text.toLowerCase().includes('satyaki') || 
+                                 text.toLowerCase().includes('creator') ||
+                                 text.toLowerCase().includes('who made you');
+
+            let userMessageParts = [];
+            let displayText = text || (!!attachedFile ? "[ANALYSIS REQUEST FOR ATTACHED EVIDENCE]" : (!!contextTextContent ? "[QUERYING INJECTED CONTEXT]" : ""));
+            
+            userMessageParts.push({ type: "text", text: displayText });
+            
+            if (attachedFile) {
+                userMessageParts.push({ 
+                    type: "image_url", 
+                    image_url: { url: attachedFile } 
+                }); 
+            }
+            
+            const imageToRender = attachedFile; 
+            clearAttachment(); 
+
+            addMessageToChat('user', displayText, imageToRender);
+
+            const session = allSessions.find(s => s.id === currentSessionId);
+            if (session) {
+                const userMessage = { role: 'user', content: userMessageParts };
+                session.history.push(userMessage);
+                saveHistory(); 
+            }
+
+
+            const aiPlaceholder = addMessageToChat('assistant', '');
+
+            let responsePromise;
+            if (creatorQuery) {
+                responsePromise = handleCreatorQuery(displayText, aiPlaceholder);
+            } else {
+                responsePromise = getChatResponse();
+            }
+
+            responsePromise.finally(() => {
+                toggleProcessing(false, 'chat');
+                userInput.focus();
+            });
+        }
+
+        function clearAttachment() {
+            attachedFile = null;
+            contextTextContent = null;
+            fileInput.value = '';
+            attachmentPreview.classList.add('hidden');
+        }
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            clearAttachment(); 
+
+            if (file.type.startsWith('image/')) {
+                try {
+                    const dataUrl = await fileToBase64(file);
+                    attachedFile = dataUrl;
+                    previewText.innerHTML = `<i data-lucide="image-up" class="w-4 h-4 mr-2"></i> EVIDENCE FILE ATTACHED: ${file.name}`;
+                } catch (e) {
+                    showModal("Image Error", "Could not process image file.", true);
+                    return;
+                }
+            } else if (file.name.toLowerCase().endsWith('.txt') || file.type === 'text/plain') {
+                 if (file.size > MAX_TEXT_SIZE_MB * 1024 * 1024) {
+                    showModal("File Too Large", `The text file is too large. Max size is ${MAX_TEXT_SIZE_MB}MB.`, true);
+                    return;
+                }
+                
+                try {
+                    const textContent = await fileToText(file);
+                    contextTextContent = textContent;
+                    previewText.innerHTML = `<i data-lucide="file-key" class="w-4 h-4 mr-2"></i> CONTEXT INJECTION: ${file.name}`;
+                } catch (e) {
+                    showModal("File Error", "Could not read the text file content.", true);
+                    return;
+                }
+            } else {
+                showModal("Attachment Error", "Only images (Evidence) or .txt files (Context) are supported.", true);
+                return;
+            }
+            
+            attachmentPreview.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            loadHistory();
+            setMode('chat'); 
+
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !sendBtn.disabled && currentMode !== 'stt') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            fileInput.addEventListener('change', handleFileSelect);
+        });
+    </script>
+</body>
+</html>
