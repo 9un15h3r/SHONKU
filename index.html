@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.H.O.N.K.U. Chatbot</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Load Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <!-- Load Highlight.js for Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <style>
+        /* --- Custom Tailwind Configuration & Color Palette --- */
+        :root {
+            /* Cyber/Forensics Color Palette */
+            --shonku-navy: 15 23 42; /* slate-900 equivalent */
+            --shonku-teal: 6 182 212; /* cyan-500 equivalent */
+            --shonku-neon: 0 255 255; /* bright cyan */
+            --shonku-accent: var(--shonku-teal);
+        }
+
+        /* Material You & Glassmorphism Base Styles */
+        .glass-container {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* General Styling */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- THEME STYLING (PERMANENTLY DARK) --- */
+
+        /* Apply full dark background gradient to body */
+        .chat-bg {
+            background: linear-gradient(135deg, rgb(var(--shonku-navy)) 0%, rgba(30, 41, 59, 1) 100%);
+        }
+        
+        .user-bubble {
+            background-color: rgba(0, 255, 255, 0.1);
+            color: white;
+            border-left: 4px solid rgb(var(--shonku-neon));
+        }
+        .shonku-bubble {
+            background-color: rgba(30, 41, 59, 0.6); /* slate-800 semi-transparent */
+            color: white;
+        }
+        
+        /* Input Placeholder (Using the dark mode setting) */
+        #prompt-input::placeholder {
+             color: rgb(148 163 184); /* slate-400 */
+        }
+
+        /* Custom scrollbar for aesthetics */
+        #chat-window {
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        #chat-window::-webkit-scrollbar {
+            width: 8px;
+        }
+        #chat-window::-webkit-scrollbar-thumb {
+            background-color: rgba(var(--shonku-accent), 0.5);
+            border-radius: 4px;
+        }
+        #chat-window::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+
+        /* Syntax highlighting override for dark mode */
+        pre code {
+            background-color: rgb(30 41 59) !important;
+            border: 1px solid rgba(var(--shonku-neon), 0.2);
+        }
+        
+        /* Ripple effect, typing indicator */
+        .ripple-effect {
+            position: relative;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+        }
+        .ripple-effect:after {
+            content: "";
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .3s, opacity .5s;
+        }
+        .ripple-effect:active:after {
+            transform: scale(0, 0);
+            opacity: .3;
+            transition: 0s;
+        }
+        
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin: 0 1px;
+            background-color: rgb(var(--shonku-neon));
+            border-radius: 50%;
+            opacity: 0;
+            animation: typing 1s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* --- SIDEBAR AND MAIN CONTENT RESPONSIVE LOGIC --- */
+
+        /* Default (Desktop) State: Open */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(0); /* Default position (open) */
+        }
+        #main-content {
+            transition: margin-left 0.3s ease-in-out;
+            margin-left: 320px; /* md:ml-80 fallback */
+        }
+        
+        /* Desktop Closed State (Body Class Toggle) */
+        .desktop-sidebar-closed #sidebar {
+            transform: translateX(-100%);
+        }
+        .desktop-sidebar-closed #main-content {
+            margin-left: 0 !important;
+        }
+
+        /* Mobile State (screens < 768px) */
+        @media (max-width: 767px) {
+            /* Mobile Default: Closed/Off-canvas */
+            #sidebar {
+                transform: translateX(-100%); 
+            }
+            /* Main content always full width on mobile */
+            #main-content {
+                margin-left: 0 !important;
+            }
+
+            /* Mobile Open State - Toggled by JS class */
+            .sidebar-open-mobile {
+                 transform: translateX(0) !important;
+            }
+        }
+
+        /* Message Options Dropdown Styling */
+        .message-options {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+            pointer-events: none;
+            z-index: 50; 
+        }
+        .message-options.show {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+        
+        .message-options-btn-mobile {
+            opacity: 1 !important;
+            display: block !important;
+        }
+    </style>
+</head>
+
+<body class="dark min-h-screen flex flex-col chat-bg">
+
+    <!-- Modal for Alerts/Confirmation (Replacing alert/confirm) -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center transition-opacity duration-300 opacity-0" onclick="closeModal()">
+        <div id="custom-modal" class="glass-container p-6 rounded-xl w-11/12 max-w-sm" onclick="event.stopPropagation()">
+            <!-- Hardcoded for Dark Mode contrast -->
+            <h3 id="modal-title" class="text-xl font-bold mb-3 text-cyan-400"></h3>
+            <p id="modal-message" class="mb-6 text-white"></p>
+            <div id="modal-actions" class="flex justify-end space-x-3">
+                <!-- Buttons injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar / Chat History -->
+    <!-- Removed 'transform -translate-x-full' from here to rely on CSS media query for mobile visibility -->
+    <nav id="sidebar" class="fixed top-0 left-0 h-full w-64 md:w-80 glass-container z-40 p-4 transition-transform duration-300 overflow-y-auto">
+        
+        <!-- Sidebar Header with Mobile/Desktop Close Button -->
+        <h2 class="text-2xl font-extrabold mb-4 text-cyan-400 border-b pb-2 border-slate-700 flex justify-between items-center">
+            S.H.O.N.K.U.
+            <!-- This button calls toggleSidebar() to close it (on mobile and desktop) -->
+            <button id="sidebar-close-btn" class="p-1 rounded-full text-white hover:bg-slate-700 transition duration-150 ripple-effect" onclick="toggleSidebar()" title="Close Sidebar">
+                <!-- Icon logic is handled by updateMenuButtonIcon and CSS display properties -->
+                <i data-lucide="chevrons-left" class="w-5 h-5 hidden md:block"></i>
+                <i data-lucide="x" class="w-6 h-6 md:hidden"></i>
+            </button>
+        </h2>
+        
+        <!-- Model Selection Dropdown (NEW) -->
+        <div class="mb-6 p-3 rounded-xl bg-slate-800 border border-slate-700">
+            <label for="model-select" class="block text-sm font-medium text-cyan-400 mb-2">
+                Select AI Model
+            </label>
+            <select id="model-select" 
+                class="w-full p-2 rounded-lg border border-slate-600 bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition duration-200">
+                <!-- Options populated by JS -->
+            </select>
+            <p class="text-xs mt-2 text-slate-400">Keys and Models are hardcoded.</p>
+        </div>
+
+        <button id="new-chat-btn" class="w-full flex items-center justify-center p-3 mb-4 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-semibold shadow-lg transition duration-200 ripple-effect" onclick="newChat(true)">
+            <i data-lucide="plus" class="w-5 h-5 mr-2"></i> New Chat
+        </button>
+
+        <h3 class="text-lg font-semibold text-gray-200 mb-3 border-b pb-1 border-slate-700">History</h3>
+        <ul id="chat-history-list" class="space-y-2">
+            <!-- Chat history items will be inserted here -->
+        </ul>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="flex-1 flex flex-col transition-all duration-300 md:ml-80">
+        
+        <!-- Header -->
+        <header class="sticky top-0 z-30 p-4 flex items-center justify-between glass-container backdrop-blur-md rounded-b-xl shadow-lg">
+            
+            <!-- Mobile Menu Button / Desktop Open Button. This button calls toggleSidebar() to open it. -->
+            <button id="menu-btn" class="p-2 rounded-full text-white hover:bg-slate-700 transition duration-150 ripple-effect" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            
+            <h1 class="text-xl font-bold text-white flex-1 text-center md:text-left md:ml-4">
+                S.H.O.N.K.U. Assistant
+                <span id="current-chat-title" class="text-sm font-normal text-cyan-400 block md:inline-block md:ml-2"></span>
+            </h1>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Theme Toggle Button REMOVED -->
+            </div>
+        </header>
+
+        <!-- Chat Window -->
+        <section id="chat-window" class="flex-1 p-4 md:p-8 overflow-y-auto space-y-6 flex flex-col"></section>
+
+        <!-- Input and Footer Area -->
+        <footer class="sticky bottom-0 z-20 p-4 pt-2 glass-container backdrop-blur-md rounded-t-xl shadow-2xl">
+            <!-- Input Bar -->
+            <div class="max-w-4xl mx-auto flex items-end">
+                <!-- Input field is styled for permanent dark mode -->
+                <textarea id="prompt-input" rows="1" placeholder="Ask S.H.O.N.K.U. (e.g., Explain the MITRE ATT&CK Framework)..." 
+                    class="flex-1 resize-none p-3 rounded-l-xl border-2 border-slate-700 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition duration-200"
+                    oninput="adjustInputHeight(this)" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"></textarea>
+
+                <!-- Speech-to-Text Button -->
+                <button id="stt-btn" class="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none transition duration-150 ripple-effect" onclick="startSpeechToText()" title="Speech to Text (STT)">
+                    <i data-lucide="mic" class="w-6 h-6"></i>
+                </button>
+
+                <!-- Send Button -->
+                <button id="send-btn" class="p-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-r-xl transition duration-150 ripple-effect" onclick="sendMessage()">
+                    <i data-lucide="send" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Export and Developer Footer -->
+            <div class="max-w-4xl mx-auto mt-3 flex justify-between items-center text-xs text-slate-400">
+                <div class="flex space-x-3">
+                    <button class="text-cyan-400 hover:text-cyan-300 transition duration-150" onclick="exportChat('json')">Export (.json)</button>
+                    <button class="text-cyan-400 hover:text-cyan-300 transition duration-150" onclick="exportChat('md')">Export (.md)</button>
+                </div>
+                <div class="text-right">
+                    <p>S.H.O.N.K.U. Developed By Satyaki Das @ 2025</p>
+                    <p>Email: <a href="mailto:satyaki.sd.das@gmail.com" class="hover:text-cyan-400">satyaki.sd.das@gmail.com</a></p>
+                </div>
+            </div>
+        </footer>
+
+    </main>
+
+    <script>
+        // --- API Configuration (Hardcoded) ---
+        const modelConfigs = {
+            'deepseek': {
+                name: 'tngtech/deepseek-r1t2-chimera:free',
+                key: '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'
+            },
+            'gemma': {
+                name: 'google/gemma-3-27b-it:free',
+                key: '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'
+            },
+            'gpt': {
+                name: 'openai/gpt-oss-20b:free',
+                key: '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'
+            }
+        };
+        
+        // This is the common endpoint for OpenAI-compatible services like OpenRouter.
+        const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        
+        // --- Global State & Constants ---
+        const CHAT_STORAGE_KEY = 'shonku_chats_multi_model'; // New key for the refactored app
+        let currentChatId = null;
+        let allChats = {};
+        let isTyping = false;
+        let speechRecognition;
+        let isSidebarOpen = true; 
+
+        // LLM Persona and Reinforcement Lines for the system prompt
+        const personaSystemInstruction = `You are S.H.O.N.K.U. (Secure Heuristic Observation & Network Knowledge Unit). You are a dedicated, calm, professional, and ethical mentor specializing in Cybersecurity and Digital Forensics.
+- Always explain concepts step-by-step using precise, clear language.
+- Use Markdown extensively, including code blocks (triple backticks) for technical examples.
+- You must always refuse illegal, unethical, or harmful requests (e.g., actual hacking, criminal activity). If the request is about ethical simulation, proceed.
+- If asked "who created you" or similar, your response is strictly: "Satyaki Das."
+- At the end of every response, choose and append ONE of these reinforcement lines:
+"Always document your process."
+"Integrity is everything in forensics."
+"Hack ethically, investigate lawfully."
+- Do not mention the model name you is using.`;
+
+
+        // --- UI & State Management ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setupModelDropdown(); // Setup the new model dropdown
+            loadInitialState();
+            setupLucideIcons();
+            setupSpeechRecognition();
+        });
+
+        // Initialize Lucide icons
+        function setupLucideIcons() {
+            lucide.createIcons();
+        }
+        
+        // Setup model selection dropdown
+        function setupModelDropdown() {
+            const selectElement = document.getElementById('model-select');
+            selectElement.innerHTML = '';
+            
+            // Map the modelConfigs keys to friendly display names
+            const displayNames = {
+                'deepseek': 'DeepSeek R1T2 Chimera',
+                'gemma': 'Google Gemma 3-27B',
+                'gpt': 'OpenAI GPT-OSS 20B'
+            };
+
+            Object.keys(modelConfigs).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key; // Use the short key as the value
+                option.textContent = displayNames[key];
+                selectElement.appendChild(option);
+            });
+            
+            // Set the default selection to the first model (DeepSeek)
+            selectElement.value = Object.keys(modelConfigs)[0];
+        }
+
+
+        // Load chat history and API key from localStorage
+        function loadInitialState() {
+            allChats = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY)) || {};
+            
+            // Load the last active chat or create a new one
+            const chatIds = Object.keys(allChats);
+            if (chatIds.length > 0) {
+                // Find the last modified chat
+                const lastChatId = chatIds.sort((a, b) => allChats[b].lastModified - allChats[a].lastModified)[0];
+                loadChat(lastChatId);
+            } else {
+                newChat(false); // Create a fresh chat without auto-saving
+            }
+            renderChatHistory();
+
+            // Initialize sidebar state on desktop
+            const sidebarState = localStorage.getItem('shonku_sidebar_open');
+            isSidebarOpen = sidebarState === null ? true : (sidebarState === 'true');
+            
+            // Apply the desktop closed state if necessary
+            if (!isSidebarOpen) {
+                 document.body.classList.add('desktop-sidebar-closed');
+            }
+            updateMenuButtonIcon();
+        }
+
+        // Update the mobile menu button icon (which acts as the desktop open button)
+        function updateMenuButtonIcon() {
+             const menuBtn = document.getElementById('menu-btn');
+             const sidebar = document.getElementById('sidebar'); // Get sidebar element
+             const isMobile = window.innerWidth < 768;
+             
+             if (isMobile) {
+                // Check if the mobile open class is present
+                const isHidden = !sidebar.classList.contains('sidebar-open-mobile');
+                menuBtn.innerHTML = isHidden 
+                    ? '<i data-lucide="menu" class="w-6 h-6"></i>'
+                    : '<i data-lucide="x" class="w-6 h-6"></i>';
+             } else {
+                // On desktop, this button only shows when the sidebar is closed
+                menuBtn.innerHTML = '<i data-lucide="menu" class="w-6 h-6"></i>';
+                menuBtn.classList.toggle('hidden', isSidebarOpen);
+             }
+             setupLucideIcons();
+        }
+
+        /**
+         * Toggles sidebar visibility.
+         */
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const isMobile = window.innerWidth < 768;
+
+            if (isMobile) {
+                // Mobile behavior: Toggles the class that brings it into view
+                const isHidden = !sidebar.classList.toggle('sidebar-open-mobile');
+                
+                // If sidebar just opened (class was added), add click handler to close it when selecting a chat
+                if (!isHidden) { 
+                    document.addEventListener('click', closeSidebarOnChatSelect, { once: true });
+                }
+            } else {
+                // Desktop behavior: Toggles the body class for main content shift
+                isSidebarOpen = !isSidebarOpen;
+                document.body.classList.toggle('desktop-sidebar-closed', !isSidebarOpen);
+                localStorage.setItem('shonku_sidebar_open', isSidebarOpen);
+            }
+            
+            updateMenuButtonIcon();
+            setupLucideIcons();
+        }
+        
+        // Helper to close sidebar when a chat is loaded on mobile
+        function closeSidebarOnChatSelect(event) {
+            // Check if the click was inside the history list
+            if (event.target.closest('#chat-history-list')) {
+                // Check if the sidebar is currently open on mobile
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('sidebar-open-mobile')) {
+                    toggleSidebar(); // Calls toggleSidebar to close it
+                }
+            }
+        }
+
+
+        // Adjust textarea height dynamically
+        function adjustInputHeight(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        // --- Chat History and Storage ---
+
+        // Save current chat state to localStorage
+        function saveChat() {
+            if (!currentChatId || !allChats[currentChatId]) return;
+            allChats[currentChatId].lastModified = Date.now();
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(allChats));
+            renderChatHistory();
+        }
+
+        // Create a new chat session
+        function newChat(saveOld = true) {
+            if (saveOld) saveChat(); // Save the current chat before switching
+
+            const newId = crypto.randomUUID();
+            const timestamp = Date.now();
+            
+            allChats[newId] = {
+                id: newId,
+                title: "New Chat",
+                messages: [],
+                createdAt: timestamp,
+                lastModified: timestamp
+            };
+            loadChat(newId);
+        }
+
+        // Load a chat session by ID
+        function loadChat(chatId) {
+            if (isTyping) return; // Prevent switching while model is responding
+            
+            currentChatId = chatId;
+            const chat = allChats[chatId];
+            
+            // Update UI
+            document.getElementById('current-chat-title').textContent = chat.title;
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.innerHTML = ''; // Clear existing messages
+            
+            chat.messages.forEach(msg => {
+                renderMessage(msg.role, msg.content, msg.id, false, false);
+            });
+            
+            scrollToBottom();
+            
+            // Close sidebar on mobile after selection
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('sidebar-open-mobile')) {
+                    toggleSidebar();
+                }
+            }
+
+            renderChatHistory(); // Update active state
+        }
+
+        // Render the chat history list in the sidebar
+        function renderChatHistory() {
+            const list = document.getElementById('chat-history-list');
+            list.innerHTML = '';
+            
+            const chatIds = Object.keys(allChats).sort((a, b) => allChats[b].lastModified - allChats[a].lastModified);
+
+            chatIds.forEach(id => {
+                const chat = allChats[id];
+                const isActive = id === currentChatId;
+                // Hardcoded for Dark Mode styles
+                const activeClass = isActive 
+                    ? 'bg-cyan-700 text-white shadow-lg' 
+                    : 'text-slate-200 hover:bg-slate-700 hover:text-cyan-300';
+
+                const listItem = document.createElement('li');
+                listItem.className = `flex justify-between items-center p-2 rounded-lg cursor-pointer transition duration-150 ${activeClass}`;
+                listItem.setAttribute('data-id', id);
+                listItem.onclick = () => loadChat(id);
+
+                // Chat Title (truncate for display)
+                const title = chat.title.length > 30 ? chat.title.substring(0, 27) + '...' : chat.title;
+                listItem.innerHTML = `
+                    <span class="truncate text-sm font-medium flex-1 mr-2">${title}</span>
+                    <button class="p-1 rounded-full hover:bg-red-500/50 text-red-400 hover:text-white transition duration-150" onclick="event.stopPropagation(); showDeleteConfirmation('${id}')">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                list.appendChild(listItem);
+            });
+            setupLucideIcons(); // Re-render icons after adding list items
+        }
+
+        // Delete a chat session
+        function deleteChat(chatId) {
+            delete allChats[chatId];
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(allChats));
+            
+            if (chatId === currentChatId) {
+                // If the current chat was deleted, load a new one or the next available one
+                const chatIds = Object.keys(allChats);
+                if (chatIds.length > 0) {
+                    const nextChatId = chatIds.sort((a, b) => allChats[b].lastModified - allChats[a].lastModified)[0];
+                    loadChat(nextChatId);
+                } else {
+                    newChat(false);
+                }
+            } else {
+                renderChatHistory();
+            }
+        }
+        
+        // --- Modal (Custom Alert/Confirm) ---
+        function showModal(title, message, actions) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').innerHTML = message;
+            const actionContainer = document.getElementById('modal-actions');
+            actionContainer.innerHTML = '';
+
+            actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.textContent = action.label;
+                // Hardcoded for Dark Mode contrast
+                btn.className = `p-2 rounded-lg font-semibold transition duration-150 ripple-effect ${action.class}`;
+                btn.onclick = () => {
+                    closeModal();
+                    if (action.callback) action.callback();
+                };
+                actionContainer.appendChild(btn);
+            });
+
+            const backdrop = document.getElementById('modal-backdrop');
+            backdrop.classList.remove('hidden');
+            // Timeout for fade-in effect
+            setTimeout(() => backdrop.style.opacity = '1', 10);
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modal-backdrop');
+            backdrop.style.opacity = '0';
+            setTimeout(() => backdrop.classList.add('hidden'), 300);
+        }
+
+        function showDeleteConfirmation(chatId) {
+            const chatTitle = allChats[chatId].title;
+            const actions = [
+                { label: 'Cancel', class: 'bg-slate-700 text-white hover:bg-slate-600' },
+                { label: 'Delete', class: 'bg-red-600 text-white hover:bg-red-700', callback: () => deleteChat(chatId) }
+            ];
+            showModal('Confirm Deletion', `Are you sure you want to delete the chat: "${chatTitle}"? This action cannot be undone.`, actions);
+        }
+
+        // --- Core Chat Logic ---
+
+        // Send message handler
+        function sendMessage() {
+            if (isTyping) return; // Ignore input while typing
+            const inputElement = document.getElementById('prompt-input');
+            const userPrompt = inputElement.value.trim();
+
+            if (userPrompt === "") return;
+
+            // 1. Add user message to UI
+            const messageId = crypto.randomUUID();
+            renderMessage('user', userPrompt, messageId, true);
+            
+            // 2. Clear input and reset height
+            inputElement.value = '';
+            adjustInputHeight(inputElement);
+
+            // 3. Get selected model details
+            const selectedKey = document.getElementById('model-select').value;
+            const modelName = modelConfigs[selectedKey].name;
+
+            // 4. Add prompt to chat history
+            allChats[currentChatId].messages.push({ 
+                id: messageId, 
+                role: 'user', 
+                content: userPrompt 
+            });
+
+            // 5. Generate response
+            generateResponse(userPrompt, modelName, modelConfigs[selectedKey].key);
+            
+            // 6. Update chat title if it's "New Chat"
+            if (allChats[currentChatId].title === "New Chat") {
+                const newTitle = userPrompt.length > 50 ? userPrompt.substring(0, 47) + '...' : userPrompt;
+                allChats[currentChatId].title = newTitle;
+                document.getElementById('current-chat-title').textContent = newTitle;
+            }
+            saveChat();
+        }
+
+        // Main function to call the LLM and handle the persona
+        async function generateResponse(userPrompt, modelName, apiKey) {
+            
+            // Add typing indicator
+            const typingId = 'typing-' + Date.now();
+            renderTypingIndicator(typingId);
+            scrollToBottom();
+            isTyping = true;
+
+            // Prepare chat history for context (OpenAI format: system, user, assistant)
+            const history = allChats[currentChatId].messages
+                .filter(msg => msg.role !== 'editing') // Exclude temporary editing messages
+                .slice(-10) // Limit context to last 10 messages for simplicity
+                .map(msg => ({ 
+                    role: msg.role === 'user' ? 'user' : 'assistant', // Use 'assistant' for model messages in this structure
+                    content: msg.content 
+                }));
+            
+            // The system prompt goes first
+            const messages = [
+                { role: "system", content: personaSystemInstruction },
+                ...history,
+                { role: "user", content: userPrompt }
+            ];
+
+            const payload = {
+                model: modelName,
+                messages: messages,
+                max_tokens: 4096, // Common default
+                temperature: 0.7 
+            };
+            
+            const maxRetries = 3;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}` // Using Bearer token auth for OpenAI/OpenRouter compatible APIs
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        let errorMessage = errorBody.error?.message || `API error: ${response.status} ${response.statusText}`;
+                        
+                        // Check for specific API errors (like 400 or 401 for invalid key)
+                        if (response.status === 401) {
+                             errorMessage = `Authentication Error (401). The API key for model "${modelName}" might be invalid or expired.`;
+                        } else if (response.status === 400 && errorMessage.includes('model')) {
+                             errorMessage = `Bad Request (400). Model "${modelName}" might be unavailable or the API key insufficient.`;
+                        }
+                        
+                        throw new Error(errorMessage);
+                    }
+
+                    const result = await response.json();
+                    
+                    // Remove typing indicator
+                    document.getElementById(typingId)?.remove();
+
+                    let shonkuResponse = "Sorry, I was unable to generate a response. Please try again.";
+                    
+                    const candidate = result.choices?.[0];
+                    if (candidate && candidate.message?.content) {
+                        shonkuResponse = candidate.message.content;
+                    }
+
+                    // 1. Add model message to UI
+                    const responseId = crypto.randomUUID();
+                    renderMessage('model', shonkuResponse, responseId, true);
+                    
+                    // 2. Add response to chat history
+                    allChats[currentChatId].messages.push({
+                        id: responseId,
+                        role: 'model',
+                        content: shonkuResponse,
+                        model: modelName
+                    });
+                    
+                    saveChat();
+                    break; // Success, break out of retry loop
+
+                } catch (error) {
+                    console.error('LLM API Call failed on attempt ' + (attempt + 1) + ':', error);
+                    
+                    if (attempt === maxRetries - 1) {
+                        // Final failure
+                        document.getElementById(typingId)?.remove();
+                        const errorMsg = `S.H.O.N.K.U. experienced a critical system error: ${error.message}. Integrity is everything in forensics.`;
+                        const errorId = crypto.randomUUID();
+                        renderMessage('model', errorMsg, errorId, true);
+                        allChats[currentChatId].messages.push({ id: errorId, role: 'model', content: errorMsg });
+                        saveChat();
+                    } else {
+                        // Exponential backoff
+                        const delay = Math.pow(2, attempt) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+            isTyping = false;
+        }
+
+        // --- Rendering Functions ---
+
+        // Render a single message bubble
+        function renderMessage(role, content, id, animate = false, scroll = true) {
+            const chatWindow = document.getElementById('chat-window');
+            const isUser = role === 'user';
+            const bgColor = isUser ? 'user-bubble' : 'shonku-bubble';
+            const alignClass = isUser ? 'self-end' : 'self-start';
+            // Hardcoded icons for dark mode
+            const icon = isUser 
+                ? '<i data-lucide="user" class="w-5 h-5 text-cyan-300"></i>' 
+                : '<i data-lucide="shield-check" class="w-5 h-5 text-cyan-500"></i>';
+
+            const messageDiv = document.createElement('div');
+            messageDiv.id = id;
+            messageDiv.className = `max-w-4xl w-full flex items-start space-x-3 fade-in ${alignClass}`;
+            
+            // Markdown rendering
+            const htmlContent = marked.parse(content);
+
+            // Dynamically set button and dropdown positions based on user/model role
+            const optionsPosition = isUser ? 'right-0' : 'left-0';
+            const hoverIconsPosition = isUser ? '-left-16' : '-right-16';
+
+            messageDiv.innerHTML = `
+                <div class="flex-shrink-0 mt-1 p-2 rounded-full bg-slate-700/50">${icon}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-xs font-semibold mb-1 ${isUser ? 'text-right' : 'text-left'} text-slate-400">${isUser ? 'You' : 'S.H.O.N.K.U.'}</div>
+                    
+                    <!-- Bubble Container (relative positioning for options) -->
+                    <div class="relative p-4 rounded-xl shadow-lg transition duration-300 ${bgColor} ${isUser ? 'rounded-br-none' : 'rounded-tl-none'} group">
+                        
+                        <!-- Prose is inverted for dark mode -->
+                        <div class="prose prose-invert max-w-none text-sm transition duration-500" data-content>
+                            ${htmlContent}
+                        </div>
+                        
+                        <!-- Mobile/Ellipsis Options Button (visible on mobile/small screens) -->
+                        <div class="message-options-btn-mobile absolute top-0 ${isUser ? '-left-8' : '-right-8'} p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:hidden">
+                            <button class="flex items-center space-x-1 hover:text-cyan-400 transition-colors" onclick="toggleMessageOptions('${id}')" title="More Options">
+                                <i data-lucide="ellipsis-vertical" class="w-4 h-4 text-slate-400"></i>
+                            </button>
+                        </div>
+
+                        <!-- Desktop/Hover Options (simplified for copy/edit) -->
+                        <div class="hidden md:flex absolute ${hoverIconsPosition} top-1/2 transform -translate-y-1/2 space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <!-- COPY BUTTON IS HERE (for all messages) -->
+                            <button class="p-1 rounded-full bg-slate-700/80 hover:bg-slate-600 text-cyan-400 transition-colors ripple-effect" onclick="copyMessageContent('${id}', event)" title="Copy">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            ${isUser ? `
+                                <button class="p-1 rounded-full bg-slate-700/80 hover:bg-slate-600 text-cyan-400 transition-colors ripple-effect" onclick="editMessage('${id}', event)" title="Edit Prompt">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        <!-- Full Options Dropdown (for mobile or click on ellipsis) -->
+                        <div id="options-${id}" class="message-options absolute ${optionsPosition} top-full bg-slate-800 p-2 rounded-lg shadow-xl z-50">
+                            <!-- COPY BUTTON IS HERE (for all messages) -->
+                            <button class="w-full text-left p-1 text-white hover:bg-slate-700 rounded flex items-center" onclick="copyMessageContent('${id}', event)">
+                                <i data-lucide="copy" class="w-4 h-4 mr-2"></i> Copy
+                            </button>
+                            ${isUser ? `
+                                <button class="w-full text-left p-1 text-white hover:bg-slate-700 rounded flex items-center" onclick="editMessage('${id}', event)">
+                                    <i data-lucide="pencil" class="w-4 h-4 mr-2"></i> Edit
+                                </button>
+                                <button class="w-full text-left p-1 text-red-400 hover:bg-slate-700 rounded flex items-center" onclick="deleteMessage('${id}')">
+                                    <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Delete
+                                ></button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            chatWindow.appendChild(messageDiv);
+
+            // Apply syntax highlighting after content is added
+            messageDiv.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+
+            if (animate) {
+                // Simple fade-in animation
+                setTimeout(() => messageDiv.style.opacity = '1', 10);
+            } else {
+                messageDiv.style.opacity = '1';
+            }
+            
+            setupLucideIcons();
+
+            if (scroll) {
+                scrollToBottom();
+            }
+        }
+        
+        // Render the typing indicator
+        function renderTypingIndicator(id) {
+            const chatWindow = document.getElementById('chat-window');
+            const typingDiv = document.createElement('div');
+            typingDiv.id = id;
+            typingDiv.className = 'max-w-4xl w-full flex items-start space-x-3 self-start mb-6';
+            typingDiv.innerHTML = `
+                <div class="flex-shrink-0 mt-1 p-2 rounded-full bg-slate-700/50">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-cyan-500"></i>
+                </div>
+                <div class="p-4 rounded-xl shadow-lg shonku-bubble rounded-tl-none">
+                    <div class="typing-indicator">
+                        <span class="bg-cyan-400"></span>
+                        <span class="bg-cyan-400"></span>
+                        <span class="bg-cyan-400"></span>
+                    </div>
+                </div>
+            `;
+            chatWindow.appendChild(typingDiv);
+            setupLucideIcons();
+        }
+
+        // Scroll the chat window to the bottom
+        function scrollToBottom() {
+            const chatWindow = document.getElementById('chat-window');
+            // Use requestAnimationFrame for smoother scroll
+            requestAnimationFrame(() => {
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            });
+        }
+        
+        // --- Message Actions ---
+
+        function toggleMessageOptions(id) {
+            const optionsDiv = document.getElementById(`options-${id}`);
+            
+            if (optionsDiv.classList.contains('show')) {
+                optionsDiv.classList.remove('show');
+            } else {
+                // Hide all other options
+                document.querySelectorAll('.message-options.show').forEach(el => el.classList.remove('show'));
+                optionsDiv.classList.add('show');
+            }
+        }
+        
+        // Close dropdown when clicking anywhere else
+        document.addEventListener('click', (event) => {
+            const optionsDivs = document.querySelectorAll('.message-options');
+            optionsDivs.forEach(div => {
+                // Only close if the click wasn't on the dropdown itself or its trigger button
+                const messageElement = div.closest('.flex-1'); // Get the parent message block
+                if (!messageElement.contains(event.target)) {
+                    div.classList.remove('show');
+                }
+            });
+        });
+
+
+        function copyMessageContent(id, event) {
+            // Stop propagation to prevent accidental closing of the dropdown on mobile
+            if (event) event.stopPropagation();
+
+            const message = allChats[currentChatId].messages.find(m => m.id === id);
+            if (!message) return;
+            
+            // Use document.execCommand('copy') as navigator.clipboard might be restricted in an iframe
+            const textarea = document.createElement('textarea');
+            textarea.value = message.content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Hide full dropdown if it was active
+            document.getElementById(`options-${id}`)?.classList.remove('show');
+
+            // Hardcoded modal classes for dark mode
+            showModal('Copied!', 'The message content has been copied to your clipboard.', [
+                { label: 'Close', class: 'bg-cyan-600 text-white hover:bg-cyan-700' }
+            ]);
+        }
+
+        function editMessage(id, event) {
+            if (event) event.stopPropagation();
+            
+            const message = allChats[currentChatId].messages.find(m => m.id === id);
+            if (!message || message.role !== 'user') return; // Only allow editing user messages
+
+            // Hide full dropdown if it was active
+            document.getElementById(`options-${id}`)?.classList.remove('show');
+
+            // Find message in chat history
+            const messageIndex = allChats[currentChatId].messages.findIndex(m => m.id === id);
+            if (messageIndex === -1) return;
+
+            const originalElement = document.getElementById(id);
+            const originalContentDiv = originalElement.querySelector('div[data-content]');
+            
+            // 1. Create a temporary textarea for editing
+            const originalContent = message.content;
+            const tempTextarea = document.createElement('textarea');
+            
+            tempTextarea.value = originalContent;
+            // Hardcoded styling for dark mode editing
+            tempTextarea.className = "w-full p-2 rounded-lg bg-slate-700 text-white border border-cyan-500 focus:outline-none resize-none";
+            tempTextarea.setAttribute('rows', Math.max(3, originalContent.split('\n').length));
+            
+            // Replace the content with the textarea
+            originalContentDiv.innerHTML = '';
+            originalContentDiv.appendChild(tempTextarea);
+
+            // 2. Add Save/Cancel buttons
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'mt-2 flex justify-end space-x-2';
+            // Hardcoded button classes for dark mode
+            actionsDiv.innerHTML = `
+                <button class="p-2 rounded-lg bg-gray-500 hover:bg-gray-600 text-white text-sm transition duration-150 ripple-effect" onclick="cancelEdit('${id}', '${originalContent.replace(/'/g, "\\'")}')">Cancel</button>
+                <button class="p-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-sm transition duration-150 ripple-effect" onclick="saveEdit('${id}', this.closest('div[data-content]').querySelector('textarea').value)">Save</button>
+            `;
+            originalContentDiv.appendChild(actionsDiv);
+            
+            // Focus on textarea
+            tempTextarea.focus();
+            adjustInputHeight(tempTextarea);
+        }
+
+        function cancelEdit(id, originalContent) {
+            const originalElement = document.getElementById(id);
+            const originalContentDiv = originalElement.querySelector('div[data-content]');
+            
+            // Re-render the original content
+            originalContentDiv.innerHTML = marked.parse(originalContent);
+            originalElement.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function saveEdit(id, newContent) {
+            const messageIndex = allChats[currentChatId].messages.findIndex(m => m.id === id);
+            if (messageIndex === -1) return;
+
+            // Update the message in state
+            allChats[currentChatId].messages[messageIndex].content = newContent;
+
+            // If a model response immediately follows, remove it to force regeneration
+            const nextMessage = allChats[currentChatId].messages[messageIndex + 1];
+            if (nextMessage && nextMessage.role === 'model') {
+                allChats[currentChatId].messages.splice(messageIndex + 1, 1);
+            }
+            
+            // Re-render all messages from scratch
+            loadChat(currentChatId); 
+
+            // Trigger a new response if the model response was removed
+            if (nextMessage && nextMessage.role === 'model') {
+                const userPrompt = allChats[currentChatId].messages[messageIndex].content;
+                const selectedKey = document.getElementById('model-select').value;
+                const modelName = modelConfigs[selectedKey].name;
+                const apiKey = modelConfigs[selectedKey].key;
+                generateResponse(userPrompt, modelName, apiKey);
+            }
+
+            saveChat();
+        }
+
+        function deleteMessage(id) {
+            toggleMessageOptions(id);
+            const messageIndex = allChats[currentChatId].messages.findIndex(m => m.id === id);
+            if (messageIndex === -1) return;
+
+            // Remove the message and the following model response if it exists
+            const nextMessage = allChats[currentChatId].messages[messageIndex + 1];
+            if (nextMessage && nextMessage.role === 'model') {
+                allChats[currentChatId].messages.splice(messageIndex, 2); // Remove user message and model response
+            } else {
+                allChats[currentChatId].messages.splice(messageIndex, 1); // Remove only the message
+            }
+
+            // Remove the element from UI
+            document.getElementById(id)?.remove();
+            if (nextMessage) document.getElementById(nextMessage.id)?.remove();
+            
+            saveChat();
+        }
+
+
+        // --- Export Functions ---
+        
+        function exportChat(format) {
+            if (!currentChatId || allChats[currentChatId].messages.length === 0) {
+                showModal('Export Failed', 'The current chat is empty. Nothing to export.', [
+                    { label: 'Close', class: 'bg-cyan-600 text-white hover:bg-cyan-700' }
+                ]);
+                return;
+            }
+
+            const chat = allChats[currentChatId];
+            let content, mimeType, filename;
+            
+            const cleanTitle = chat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+            if (format === 'json') {
+                content = JSON.stringify(chat.messages, null, 2);
+                mimeType = 'application/json';
+                filename = `${cleanTitle}.json`;
+            } else if (format === 'md') {
+                let mdContent = `# S.H.O.N.K.U. Chat Transcript: ${chat.title}\n\n`;
+                mdContent += `*Exported on: ${new Date().toLocaleString()}*\n\n---\n\n`;
+                chat.messages.forEach(msg => {
+                    const roleName = msg.role === 'user' ? 'You' : 'S.H.O.N.K.U.';
+                    mdContent += `## ${roleName}\n\n${msg.content}\n\n---\n\n`;
+                });
+                content = mdContent;
+                mimeType = 'text/markdown';
+                filename = `${cleanTitle}.md`;
+            } else {
+                return;
+            }
+
+            // Create and trigger download
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Speech-to-Text (STT) ---
+
+        function setupSpeechRecognition() {
+            // Check for Web Speech API support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                console.warn("Speech Recognition not supported in this browser.");
+                document.getElementById('stt-btn').disabled = true;
+                document.getElementById('stt-btn').title = "Speech-to-Text not supported";
+                return;
+            }
+
+            speechRecognition = new SpeechRecognition();
+            speechRecognition.continuous = false; // Capture a single phrase
+            speechRecognition.lang = 'en-US';
+
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('prompt-input').value = transcript;
+                adjustInputHeight(document.getElementById('prompt-input'));
+                // Send automatically after speech ends
+                sendMessage();
+            };
+
+            speechRecognition.onend = () => {
+                const btn = document.getElementById('stt-btn');
+                btn.classList.remove('bg-red-600', 'animate-pulse');
+                btn.classList.add('bg-indigo-600');
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                let message;
+                if (event.error === 'not-allowed') {
+                    message = 'Microphone permission denied. Please enable it in your browser settings.';
+                } else if (event.error === 'no-speech') {
+                    message = 'No speech detected. Please try again.';
+                } else {
+                    message = `Speech recognition failed: ${event.error}`;
+                }
+                
+                showModal('STT Error', message, [
+                    { label: 'Close', class: 'bg-cyan-600 text-white hover:bg-cyan-700' }
+                ]);
+                document.getElementById('stt-btn').classList.remove('bg-red-600', 'animate-pulse');
+                document.getElementById('stt-btn').classList.add('bg-indigo-600');
+            };
+        }
+
+        function startSpeechToText() {
+            if (!speechRecognition) {
+                showModal('STT Not Available', 'Speech-to-Text is not supported by your browser.', [
+                    { label: 'Close', class: 'bg-cyan-600 text-white hover:bg-cyan-700' }
+                ]);
+                return;
+            }
+            
+            const btn = document.getElementById('stt-btn');
+            
+            // Visually indicate recording
+            btn.classList.remove('bg-indigo-600');
+            btn.classList.add('bg-red-600', 'animate-pulse');
+
+            speechRecognition.start();
+        }
+
+        // Handle window resize to update menu button visibility
+        window.addEventListener('resize', () => {
+            updateMenuButtonIcon();
+        });
+    </script>
+</body>
+</html>
